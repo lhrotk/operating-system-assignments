@@ -1,0 +1,10 @@
+Author: Hongru Li
+ID: 215245830
+
+./nlcnt [mapping/reading] filename
+
+The program count how many lines are there in the "filename"
+
+The argument tells the program the directory to your target.
+
+You can also use other dynamic library by changing the second argument.

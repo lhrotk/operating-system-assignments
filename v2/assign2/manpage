@@ -1,0 +1,54 @@
+================================================================================
+Usage: make [option]
+  clean,			clean all files apart from source file.
+  man,				show the manual.
+  all, 				compile the files
+IMPORTANT: 
+   The makefile do not run the program automatically. You should run the
+program like this:
+   ./sercli.out [--lambda[0.005]] [--mu [0.01]] [--servers[2]] --[clients[2
+   ]]
+For example:
+   ./sercli.out --lambda 0.5 --mu 0.02 --servers 5 --clients 5
+   run the progrom with 5 servers and 5 clients with lambda = 0.5 and mu = 
+   0.02
+
+   You should strictly follow the syntax above!
+
+Author: Hongru Li
+Student ID: 215245830
+================================================================================
+Description:
+   The program emulates a set of servers and a set of clients who continuously
+   generate tasks and consume tasks in one task quene. The servers and clients do 
+   synchronization under the control of a clock thread using mutex lock. 'Suspend'
+   and 'wakeup' is done by prototype algorithm like signal() and wait() introduced
+   in class.
+
+   This program did not use pthread_cond_wait and pthread_cond_signal because
+   the clock and the set of servers and clients wait each other like in the last 
+   assignment and it is complex to use conditional variables. 
+   However, the data is well protected by a mutex and no server or client can be 
+   emitted more than once in a signal tick in my solution.
+
+   This method uses signal() and wait() with a signal initialized to the sum of 
+   servers and clients. Just equal to providing some products in one tick and the 
+   servers, clients consume it together avoiding confliction using mutex. They also
+   check the loop register to see wether they have do the consumption in the loop.
+   If they need to wait for the next tick, they will block though there is food 
+   remains.
+
+   Total waiting time is record by accumulate how many tasks remain at the end of
+    a tick.
+
+   Total excution time is record by accumulate how many server is BUSY in a tick.
+
+   Total turnaround time is done by add Total wait time and Total excute time.
+
+   Total quene length is done by add the length of quene at each tick together.
+
+   Total interarriavl time is 1000 ticks.
+
+   As we know how many tasks are generated and the program is run for 1000 ticks,
+   We can calculate AWT, AXT, ATA, AQL and AIA.
+================================================================================

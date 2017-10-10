@@ -1,0 +1,32 @@
+=====================================================================
+Usage: make [option]
+  clean,			clean all files apart from source file.
+  man,				show the manual.
+  all, 				compile the files and execute it
+You can also execute by "./siperf.out".
+Author: Hongru Li
+Student ID: 215245830
+======================================================================
+The program measures the performance of exchanging signal for 100 times
+between two children.
+
+V1 follow the method mentioned in Version1. However because the children
+do not know each other at first, we can notify the brother of a known pid 
+by send signal SIGUSR2 while another child is waiting with sigaction() and
+sigsuspend();
+
+The synchronization during exchange is done by block the signal.
+
+function sigsuspend(&mask) makes the process suspend waiting for any signal
+unblocked in sigset_t mask. At any time SIGUSR1 is blocked in these two 
+children because I block the signal in their father. One child will call
+sigsuspend() when it prepared for a coming signal (unblock SIGUSR1) and soon
+block it again so that it will not be killed if the signal comes when it
+is not prepared.
+
+This synchronization makes sure one child will not send a signal before it
+receive a signal, and prepared for a coming signal using "signal()" when it 
+try to send a signal.
+
+Please refer to annotation in source code for details.
+========================================================================

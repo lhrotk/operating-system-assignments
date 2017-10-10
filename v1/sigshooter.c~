@@ -1,0 +1,115 @@
+#include <stdio.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <errno.h>
+#include <string.h>
+#include <stdlib.h>
+#include <signal.h>
+#include <time.h>
+#define AMOUNT 100
+int argc;
+char* argv[];
+
+void wakeup(){
+	return;
+}
+
+void recvsignal(pid_t pid){
+        int i = 0, start, end;
+	sigset_t	emptymask;
+	sigemptyset(&emptymask);
+	start = clock();		// timer start 
+	while(i < AMOUNT){
+		signal(SIGUSR1, wakeup);
+		if(kill(pid, SIGUSR1) != 0){
+			fprintf(stderr, "%s: kill error: %s\n", argv[0], strerror(errno));
+			exit(1);
+		}
+		if(sigsuspend(&emptymask) != -1){
+			fprintf(stderr, "%s: sigsuspend error: %s\n", argv[0], strerror(errno));
+			kill(pid, SIGABRT);	//also kill its brother
+			exit(1);
+		}
+ 		i++;
+		/*avoid IO in exchange process because IO cost lots of time*/
+		//printf("%d th round, process id: %d\n", i, getpid());
+	}
+	if(kill(pid, SIGUSR1) != 0){
+		fprintf(stderr, "%s: kill error: %s\n", argv[0], strerror(errno));
+		exit(1);
+	}
+	end = clock();			// timer end
+        printf("exchange time: %lf s\n", (double)(end-start)/CLOCKS_PER_SEC);
+	exit(0);
+}
+
+void sendsignal(pid_t pid){
+	int i= 0;
+	sigset_t 	emptymask;
+	sigemptyset(&emptymask);
+	signal(SIGUSR1, wakeup);
+	kill(pid, SIGUSR2);
+	if(sigsuspend(&emptymask) != -1){
+		fprintf(stderr, "%s: sigsuspend error: %s\n", argv[0], strerror(errno));
+		kill(pid, SIGABRT);	//also kill its brother
+		exit(1)
+	}
+        while(i < AMOUNT){
+		signal(SIGUSR1, wakeup);// signal() must start before kill() to make the child prepared for signal
+/*
+*	if the signal() is executed after kill(), the process can be directly shut down by signal;
+	the original reaction to signal is exit() and the time spent of CPU in each child is not programmed;
+	imagine child1 stop after kill(); and child2 suddenly send a signal back. In this case one child will expire in advance;
+	so instead of using pause(), we should only a use sigsuspend();
+*/
+		if(kill(pid, SIGUSR1) != 0){
+			fprintf(stderr, "%s: kill error: %s\n", argv[0], strerror(errno));
+			exit(0);
+		}
+		if(sigsuspend(&emptymask) != -1){
+			fprintf(stderr, "%s: sigsuspend error: %s\n"), argv[0], strerror(errno);
+			kill(pid, SIGABRT);
+			exit(1);
+		}
+		i++;
+		//printf("%d th round, process id: %d\n", i, getpid());
+        }
+	exit(0);
+}
+
+
+
+void otch(int sig, siginfo_t *info, void *context){
+		printf("child1 got signal from:%d\n", info->si_pid);	// this struct pass the pid of who has sent the signal
+ 		signal(SIGUSR1, wakeup);
+        	recvsignal(info->si_pid);
+               
+}
+
+
+int main(int argc, char* argv[]){
+        if(argc > 1){
+		pid_t pid;
+		int 	i;
+		sscanf(argv[1], "%d", &pid);		// send a signal to child1 to notify its pid
+		sendsignal(pid);
+	}
+	else{
+		struct sigaction sa_usr;
+		sigset_t	emptymask;
+		sa_usr.sa_flags = SA_SIGINFO;	// use otch as processing function when comes a signal
+                sa_usr.sa_sigaction = otch;
+		sigemptyset(&emptymask);
+		sigaddset(&emptymask, SIGUSR1);
+		if(sigaction(SIGUSR2, &sa_usr, NULL) != 0){
+			fprintf(stderr, "%s: sigaction error: %s\n", argv[0], strerror(errno));
+			exit(1);
+		}
+/*when the signal SIGUSR2 is being processed, the same signal is blocked, so we should change into another signal.*/
+		if(sigsuspend(&emptymask) != -1){
+			fprintf(stderr, "%s: sigsuspend error: %s \n", argv[0], strerror(errno));
+			exit(1);
+		}			// stops the process until function otch return;
+	}
+	exit(0);
+}

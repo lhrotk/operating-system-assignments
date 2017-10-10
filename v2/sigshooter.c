@@ -1,0 +1,69 @@
+#include <stdio.h>
+#include <stdio.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <errno.h>
+#include <string.h>
+#include <stdlib.h>
+#include <signal.h>
+#include <time.h>
+
+int permit = 0;
+
+void wakeup(){
+	permit = 1;
+}
+
+int main(int argc, char* argv[]){
+	pid_t		brother;
+	sigset_t	emptymask;
+	int   		id, time_start, time_end, timer;
+
+	sigemptyset(&emptymask);
+
+	if((sscanf(argv[1] ,"%d", &brother) == -1)||(sscanf(argv[2], "%d", &id) == -1)){
+		fprintf(stderr, "%s: sscanf error: %s", argv[0], strerror(errno));
+		exit(0);
+	}
+	
+	//sigaddset(&blockmask, SIGUSR1);
+	//sigprocmask(SIG_SETMASK, &blockmask, NULL);
+
+	if(id == 1){
+		time_start = clock();
+		//sleep(5);
+		//printf("child2 is: %d\n", brother);
+		if(kill(brother, SIGUSR1) != 0){
+			fprintf(stderr, "%s: kill error: %s\n", argv[0], strerror(errno));
+			kill(brother, SIGABRT);
+			exit(1);
+		}
+
+	}
+	for(timer = 0; timer < 100; timer++){
+		signal(SIGUSR1, wakeup);
+		if(sigsuspend(&emptymask) != -1){			// unblock the signal and suspend
+			fprintf(stderr, "%s: sigsuspend error: %s \n", argv[0], strerror(errno));
+			kill(brother, SIGABRT);
+			exit(1);
+		}
+		// the signal is blocked again after wakeup return;
+		if(kill(brother, SIGUSR1) != 0){
+			fprintf(stderr, "%s: kill error: %s\n", argv[0], strerror(errno));
+			kill(brother, SIGABRT);
+			exit(1);
+		}
+	}
+	if(id == 2){
+		signal(SIGUSR1, wakeup);
+		if(sigsuspend(&emptymask) != -1){   			// unblock the sigal and suspend
+			fprintf(stderr, "%s: sigsuspend error: %s \n", argv[0], strerror(errno));
+			exit(1);
+		}
+	}
+	else{
+		time_end = clock();
+		printf("exchange time: %lf s \n", (double)(time_end - time_start)/CLOCKS_PER_SEC);
+	}
+	exit(0);
+}
